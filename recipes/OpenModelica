@@ -1,0 +1,12 @@
+app: omedit
+
+ingredients:
+  dist: trusty
+  sources:
+    - deb http://archive.ubuntu.com/ubuntu/ trusty main universe
+    - deb http://build.openmodelica.org/apt/ trusty nightly
+  packages:
+    -openmodelica
+  scripts:
+    - cp ./usr/share/applications/om*.desktop .
+  
