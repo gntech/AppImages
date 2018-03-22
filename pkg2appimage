@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 
-env
+# env
+
+# Specify a certain commit if you do not want to use master
+# by using:
+# export PKG2AICOMMIT=<git sha>
+if [ -z "$PKG2AICOMMIT" ] ; then
+  PKG2AICOMMIT=master
+fi
+
 
 usage() {
   echo "usage:"
@@ -38,7 +46,7 @@ which cut >/dev/null 2>&1 || ( echo cut missing && exit 1 )
 if [ ! -f "${!#}" ] ; then
   YAMLFILE=/tmp/_recipe.yml
   rm -f "$YAMLFILE"
-  wget -q "https://github.com/AppImage/AppImages/raw/master/recipes/${!#}.yml" -O "$YAMLFILE"
+  wget -q "https://github.com/AppImage/AppImages/raw/${PKG2AICOMMIT}/recipes/${!#}.yml" -O "$YAMLFILE"
 else
   YAMLFILE=$(readlink -f "${!#}")
 fi
@@ -63,7 +71,7 @@ parse_yaml() {
     local s
     local w
     local fs
-    s='[[:space:]]*'
+    s='[[:blank:]]*'
     w='[a-zA-Z0-9_]*'
     fs="$(echo @|tr @ '\034')"
     sed -ne "s|^\($s\)\($w\)$s:$s\"\(.*\)\"$s\$|\1$fs\2$fs\3|p" \
@@ -82,6 +90,10 @@ parse_yaml() {
 # Read yaml file
 parse_yaml $YAMLFILE "_"
 eval $(parse_yaml $YAMLFILE "_")
+
+if [ ! -z $_enable_di ]; then
+    ENABLE_DI="$_enable_di"
+fi
 
 # Execute multiple script lines together as one
 # shell_execute filename key_of_group_of_commands
@@ -113,7 +125,7 @@ fi
 # variable FUNCTIONS_SH was set and the file exists
 if [ -z "$FUNCTIONS_SH" ] ; then
   if [ ! -e functions.sh ] ; then
-    wget -q https://github.com/AppImage/AppImages/raw/master/functions.sh -O ./functions.sh
+    wget -q https://github.com/AppImage/AppImages/raw/${PKG2AICOMMIT}/functions.sh -O ./functions.sh
   fi
   . ./functions.sh
 else
@@ -189,6 +201,9 @@ if [ ! -z "${_ingredients_dist}" ] ; then
   for PPA in "${_ingredients_ppas[@]}" ; do
     echo "deb http://ppa.launchpad.net/${PPA}/ubuntu ${_ingredients_dist} main" >> sources.list
   done
+  for DEBFILE in "${_ingredients_debs[@]}" ; do
+    cp ${DEBFILE} .
+  done
   # Use libcurl-slim to reduce AppImage size, thanks darealshinji
   # Not really compiled on xenial but CentOS 6, https://github.com/AppImage/AppImages/issues/187
   echo "deb http://ppa.launchpad.net/djcj/libcurl-slim/ubuntu xenial main" >> sources.list
@@ -231,7 +246,7 @@ if [ ! -z "${_ingredients_dist}" ] ; then
     INSTALL=${_ingredients_packages[@]}
   fi
 
-  apt-get -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true $OPTIONS update || true
+  apt-get -o Acquire::AllowInsecureRepositories=true -o Acquire::Languages="none" -o Acquire::AllowDowngradeToInsecureRepositories=true $OPTIONS update || true
   URLS=$(apt-get --allow-unauthenticated -o Apt::Get::AllowUnauthenticated=true $OPTIONS -y install --print-uris $INSTALL | cut -d "'" -f 2 | grep -e "^http")
   if which aria2c &>/dev/null; then
     dltool=aria2c

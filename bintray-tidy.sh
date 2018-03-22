@@ -49,7 +49,15 @@ main() {
   echo "$0"
   echo "Tidying package '${BINTRAY_REPO_OWNER}/${BINTRAY_REPO}/${package}'."
 
+  set -x
   get_remote_versions
+  echo "$REMOTE_VERSIONS"
+  
+  # Debugging for https://travis-ci.org/AppImage/AppImages/jobs/347101634#L2574
+  get_version_date
+  echo version_date_YMD="$version_date_YMD"
+  echo version_date_Ywk="$version_date_Ywk"
+  set +x
 
   [ "$arg_s" ] && echo "SIMULATION: No versions will actually be deleted from the server." || true
 
@@ -61,7 +69,7 @@ main() {
       max_days
       ;;
     archive )
-      archive
+      archive  
       ;;
     * )
       fatal_error "invalid strategy '${strategy}'"
@@ -86,14 +94,14 @@ function initialize_variables() {
 
   # Variables
   PCK_URL="${API}/packages/${BINTRAY_REPO_OWNER}/${BINTRAY_REPO}/${package}"
-  CURL="curl -u${BINTRAY_USER}:${BINTRAY_API_KEY} \
+  CURL="curl --silent --show-error -u${BINTRAY_USER}:${BINTRAY_API_KEY} \
          -H Content-Type:application/json \
          -H Accept:application/json"
 }
 
 function get_remote_versions() {
   readarray -t REMOTE_VERSIONS < <( \
-  curl -X GET "${PCK_URL}" \
+  curl --silent --show-error -X GET "${PCK_URL}" \
     | sed -nr 's|.*"versions":\["([^]]*)"\].*|\1|p' \
     | sed 's|","|\n|g' )
   echo "$0: ${#REMOTE_VERSIONS[@]} versions found on the remote server."
@@ -178,8 +186,8 @@ function get_version_date() {
   created="$(${CURL} -X GET "${PCK_URL}/versions/$1" 2>/dev/null | sed -nr \
 's|.*"created":"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z)".*|\1|p' )"
   [ "$created" ] || return 1 # failed to fetch "created" field
-  version_date_YMD="$(date --utc -d "$created" +%Y%m%d)" # YYYYMMDD
-  version_date_Ywk="$(date --utc -d "$created" +%Y%V)" # YYYY<weeknum>
+  export version_date_YMD="$(date --utc -d "$created" +%Y%m%d)" # YYYYMMDD
+  export version_date_Ywk="$(date --utc -d "$created" +%Y%V)" # YYYY<weeknum>
   [ "$version_date_YMD" ] || return 1 # "created" field was wrong format
 }
 
