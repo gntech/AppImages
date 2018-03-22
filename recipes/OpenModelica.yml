@@ -6,7 +6,8 @@ ingredients:
     - deb http://archive.ubuntu.com/ubuntu/ trusty main universe
     - deb http://build.openmodelica.org/apt/ trusty nightly
   packages:
-    -openmodelica
+    - openmodelica
+    - git
   scripts:
-    - cp ./usr/share/applications/om*.desktop .
-  
+    - cp ./usr/share/applications/omedit.desktop .
+    - find usr/ -type f -exec sed -i -e "s@/usr/lib/omc@././/usr/lib/omc@g" {} \;
